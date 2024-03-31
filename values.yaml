@@ -1,0 +1,116 @@
+loki:
+  enabled: true
+  sidecar:
+     datasources:
+       enabled: true 
+  url: http://{{(include "loki.serviceName" .)}}:{{ .Values.loki.service.port }}
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 1Gi
+  persistence:
+    enabled: true
+    size: 10Gi
+  config:
+    schema_config:
+      configs:
+      - from: 2024-01-01
+        store: boltdb-shipper
+        object_store: filesystem
+        schema: v11
+        index:
+          prefix: loki_index_
+          period: 24h
+## Issue: too many outstanding requests
+## grafana에서 위와 같은 오류 메세지가 발생할때 설정 추가합니다. 기본 설치로 하는걸 추천
+    query_scheduler:
+      max_outstanding_requests_per_tenant: 4096
+    frontend:
+      max_outstanding_per_tenant: 4096
+    query_range:
+      parallelise_shardable_queries: true
+    limits_config:
+      split_queries_by_interval: 15m
+      max_query_parallelism: 32
+ 
+promtail:
+  enabled: true
+  resources:
+    requests:
+      cpu: 200m
+      memory: 512Mi
+    limits:
+      cpu: 200m
+      memory: 512Mi
+## promtail은 데몬셋 리소스로 배포되기 때문에 아래의 설정을 추가합니다.
+  tolerations:
+  - operator: "Exists"
+    effect: "NoSchedule"
+
+## 별도의 그라파나가 설치되어있다는 가정하에 해당 그라파나는 설치 하지 않습니다.
+grafana:
+  enabled: false # true
+  sidecar:
+    datasources:
+      enabled: true
+  image:
+    pullPolicy: Always
+    # tag: "8.3.5" # Specify the Grafana image version
+    tag: "10.2.3" # Specify the Grafana image version
+  adminPassword: "mySecretPassword" # Set the admin password
+  ingress:
+    enabled: false
+    annotations:
+      kubernetes.io/ingress.class: nginx
+    hosts:
+      - exmple.domain
+  persistence:
+    enabled: true
+    type: pvc
+    size: 1Gi
+    # Existing claim to use for Grafana data
+    existingClaim:
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+      - name: Loki
+        type: loki
+        url: http://loki-stack:3100
+        access: proxy
+        isDefault: true
+      - name: Prometheus
+        type: prometheus        
+        url: http://prometheus-community-kube-prometheus.monitoring:9090/
+        access: proxy      
+        jsonData:
+          httpMethod: POST
+          timeInterval: 30s
+      - name: Alertmanager
+        type: alertmanager        
+        url: http://prometheus-community-kube-alertmanager.monitoring:9093/
+        access: proxy
+        jsonData:
+          handleGrafanaManagedAlerts: false
+          implementation: prometheus
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        editable: true
+        options:
+          path: /var/lib/grafana/dashboards/default
+  dashboards:
+    default:
+      loki-quick-start:
+        gnetId: 14055 # 14055, revision: 5 # 10880, 1
+        revision: 5
+        datasource: Loki
