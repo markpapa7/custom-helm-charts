@@ -2,6 +2,18 @@
 대규모 시스템 환경이 아닌 중/소규모의 시스템 환경에선 `loki-stack` 으로 로깅 모니터링을 구축할 수 있습니다.
 사용법 또한 비교적 간편하며, 기존에 사용하고 있는 그라파나와도 쉽게 연동이 가능하므로 리소스 모니터링과 로그 모니터링 채널을 한개로 운영 할 수 있습니다.
 
+## 설치 및 테스트
+해당 레포지트를 클론합니다.
+```
+helm upgrade -i loki-stack . -n loki
+helm ls
+```
+로그 메세지 출력 확인용 Pod
+```
+kubectl apply -f fake-logging.yaml
+```
+그라파나와 연동이되어있다면 로그 메시지를 바로 확인 가능합니다.
+
 공식 헬름차트 저정소: https://github.com/grafana/helm-charts?tab=readme-ov-file
 
 
